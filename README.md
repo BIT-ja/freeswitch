@@ -24,6 +24,22 @@ The main index for documentation is available at:
 
   * https://freeswitch.org/confluence/
 
+## Logging (mod_logfile)
+
+`mod_logfile` supports profile-level structured prefixes:
+
+* `log-tags=true` to include channel log tags in log line prefixes.
+* `channel-vars` mappings (for example `callid=sip_call_id,instanceID=sip_h_X-callinstanceID`) to include selected channel variables in prefixes.
+
+Additional behavior:
+
+* Profile load prints effective settings (`uuid`, `log-tags`, `channel-vars`, mappings, rollover, max rotate, logfile).
+* Channel variable prefixes are cached by UUID to reduce repeated session lookups.
+* Cache entries are marked on `CHANNEL_DESTROY` and cleaned up with delayed sweep.
+* Cache create/update/clear debug logs are emitted at `DEBUG`.
+
+Prefix output format is plain tokens without square brackets (for example `uuid callid:... instanceID:...`).
+
 
 ### Release notes:
 
