@@ -70,6 +70,13 @@ jobs:
       #       -e '/mod_pgsql/s/^/#/g' \
       #       modules.conf
 
+      - name: Disable mod_rocketmq on macOS
+        run: |
+          gsed -i -E \
+            's@^[[:space:]]*#?[[:space:]]*event_handlers/mod_rocketmq([[:space:]]*(#.*)?)?$@#event_handlers/mod_rocketmq@' \
+            modules.conf
+          grep -n "mod_rocketmq" modules.conf || true
+
       - name: Configure build
         run: |
           mkdir -p OUT && \

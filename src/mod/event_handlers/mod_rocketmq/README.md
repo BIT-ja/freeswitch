@@ -32,6 +32,7 @@ Build command behavior:
 - If you only want to build this module without triggering `core`, run:
   - `make -C src/mod mod_rocketmq-all`
   - `make -C src/mod mod_rocketmq-install`
+- In repository GitHub Actions `macos` workflow, `mod_rocketmq` is explicitly commented out before `./configure` to avoid RocketMQ dependency failure on macOS runners.
 
 There is also a local manual `Makefile` in this directory for standalone builds.
 
@@ -42,6 +43,10 @@ Configure-time dependency check:
   - Debian/Ubuntu: `rocketmq-client-cpp-2.2.0.amd64.deb`
   - RHEL/CentOS family: `rocketmq-client-cpp-2.2.0-centos7.x86_64.rpm`
 - If RocketMQ is already installed but `configure` still reports `no`, rerun `bootstrap.sh` to regenerate autotools files, then run `./configure --with-rocketmq=/usr/local`.
+- CI auto-install behavior:
+  - `ci.sh` always tries to ensure RocketMQ dependency before running FreeSWITCH `./configure` (not gated by module comment state).
+  - Debian/Ubuntu: install local `rocketmq-client-cpp-2.2.0.amd64.deb`
+  - RHEL/CentOS-like: install local `rocketmq-client-cpp-2.2.0-centos7.x86_64.rpm`
 
 
 Configuration
@@ -119,6 +124,22 @@ Ordered mode:
 - When `message_mode=ordered`, queue selection is key-hash based.
 - `queue_id = hash(key) % topic_queue_count`.
 - A custom selector maps that queue id to the broker queue list so the same key is consistently routed.
+
+
+Implementation Notes (Refactor)
+-------------------------------
+
+Latest refactor keeps wire behavior unchanged and focuses on C++ maintainability:
+
+- Introduced RAII-style mutex guard and JSON buffer lifecycle management to reduce `goto`-based cleanup paths.
+- Extracted key generation / retry send / producer startup into dedicated helper functions to simplify `mod_rocketmq_event_handler`.
+- Unified producer initialization path for `load` and `restart` to avoid duplicated configuration branches.
+- Removed source-level hardcoded ABI macro and rely on configure-detected ABI flags.
+- Refactored `mod_rocketmq_do_config` into smaller helpers (event filter parsing, parameter parsing, default injection, config logging, reload rebind).
+- Refactored `mod_rocketmq_load` to use dedicated helpers for topic validation/recovery and event-binding cleanup.
+- Normalized `message_mode` parsing (trim/lowercase/whitelist/fallback) to reduce invalid-config ambiguity.
+- Unified event-binding logic for load/reload and return explicit failure when reload bind fails.
+- Added Chinese in-code comments on core control-flow paths (locking, key routing, retry/restart behavior) for easier team maintenance.
 
 
 CLI/API
