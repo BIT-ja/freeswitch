@@ -85,6 +85,7 @@ event_handlers/mod_event_socket
 #event_handlers/mod_format_cdr
 #event_handlers/mod_json_cdr
 #event_handlers/mod_odbc_cdr
+event_handlers/mod_rocketmq
 #event_handlers/mod_smpp
 #event_handlers/mod_snmp
 #formats/mod_imagick

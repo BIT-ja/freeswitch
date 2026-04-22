@@ -1,0 +1,19 @@
+<configuration name="rocketmq.conf" description="mod_rocketmq">
+  <profiles>
+    <profile name="default">
+      <param name="namesrv" value="localhost:9876"/>
+      <param name="group_id" value="freeswitch_producer_group"/>
+      <param name="access_key" value=""/>
+      <param name="secret_key" value=""/>
+      <param name="filter_account_prefix" value="BYTEL"/>
+      <param name="send_timeout" value="3000"/>
+      <param name="retry_times" value="3"/>
+      <param name="max_message_size" value="4096"/>
+      <param name="reconnect_retry_times" value="5"/>
+      <param name="reconnect_retry_interval" value="1000"/>
+      <param name="topic_queue_count" value="4"/>
+      <param name="message_mode" value="ordered"/>
+      <param name="event_filter" value="CHANNEL_CREATE,CHANNEL_ANSWER,API,CUSTOM^sofia::register"/>
+    </profile>
+  </profiles>
+</configuration>

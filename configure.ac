@@ -1547,7 +1547,7 @@ PKG_CHECK_MODULES([SIGNALWIRE_CLIENT], [signalwire_client2 >= 2.0.0],[
 ])
 
 PKG_CHECK_MODULES([AMQP], [librabbitmq >= 0.5.2], [
-       AM_CONDITIONAL([HAVE_AMQP], [true])
+	       AM_CONDITIONAL([HAVE_AMQP], [true])
        # Extract the version of librabbitmq
        AMQP_VERSION=`$PKG_CONFIG --modversion librabbitmq`
        AC_DEFINE_UNQUOTED([AMQP_VERSION], ["$AMQP_VERSION"], [Version of librabbitmq])
@@ -1559,9 +1559,86 @@ PKG_CHECK_MODULES([AMQP], [librabbitmq >= 0.5.2], [
        AC_SUBST(AMQP_MAJOR_VERSION)
        AC_SUBST(AMQP_MINOR_VERSION)
    ], [
-       AC_MSG_RESULT([no])
-       AM_CONDITIONAL([HAVE_AMQP], [false])
-   ])
+	       AC_MSG_RESULT([no])
+	       AM_CONDITIONAL([HAVE_AMQP], [false])
+	   ])
+
+AC_ARG_WITH([rocketmq],
+  [AS_HELP_STRING([--with-rocketmq=PREFIX], [RocketMQ C++ client install prefix (default: /usr/local)])],
+  [ROCKETMQ_PREFIX="$withval"],
+  [ROCKETMQ_PREFIX="/usr/local"])
+
+ROCKETMQ_CFLAGS="-I${ROCKETMQ_PREFIX}/include"
+ROCKETMQ_LIBS="-L${ROCKETMQ_PREFIX}/lib -lrocketmq"
+if test "x${ROCKETMQ_PREFIX}/lib" != "x/usr/lib" -a "x${ROCKETMQ_PREFIX}/lib" != "x/lib"; then
+  ROCKETMQ_LIBS="$ROCKETMQ_LIBS -Wl,-rpath,${ROCKETMQ_PREFIX}/lib"
+fi
+
+save_CXXFLAGS="${CXXFLAGS}"
+save_LIBS="${LIBS}"
+CXXFLAGS="${CXXFLAGS} ${ROCKETMQ_CFLAGS}"
+LIBS="${ROCKETMQ_LIBS} ${LIBS}"
+AC_LANG_PUSH([C++])
+AC_MSG_CHECKING([for RocketMQ C++ client library])
+have_rocketmq=no
+AC_LINK_IFELSE(
+  [AC_LANG_PROGRAM(
+    [[#include <rocketmq/DefaultMQProducer.h>]],
+    [[rocketmq::DefaultMQProducer probe("freeswitch_probe"); return 0;]]
+  )],
+  [have_rocketmq=yes],
+  [
+    # Retry with old libstdc++ ABI, which matches the bundled RocketMQ package.
+    CXXFLAGS="${save_CXXFLAGS} ${ROCKETMQ_CFLAGS} -D_GLIBCXX_USE_CXX11_ABI=0"
+    AC_LINK_IFELSE(
+      [AC_LANG_PROGRAM(
+        [[#include <rocketmq/DefaultMQProducer.h>]],
+        [[rocketmq::DefaultMQProducer probe("freeswitch_probe"); return 0;]]
+      )],
+      [
+        have_rocketmq=yes
+        ROCKETMQ_CFLAGS="${ROCKETMQ_CFLAGS} -D_GLIBCXX_USE_CXX11_ABI=0"
+      ],
+      [have_rocketmq=no]
+    )
+  ]
+)
+AC_MSG_RESULT([$have_rocketmq])
+AC_LANG_POP([C++])
+CXXFLAGS="${save_CXXFLAGS}"
+LIBS="${save_LIBS}"
+
+if test "x$have_rocketmq" = "xyes"; then
+  AM_CONDITIONAL([HAVE_ROCKETMQ], [true])
+else
+  AM_CONDITIONAL([HAVE_ROCKETMQ], [false])
+  ROCKETMQ_CFLAGS=""
+  ROCKETMQ_LIBS=""
+  if module_enabled mod_rocketmq; then
+    rocketmq_pkg_hint=""
+    rocketmq_install_hint=""
+    rocketmq_os_info=""
+
+    if test -r /etc/os-release; then
+      rocketmq_os_info=`. /etc/os-release >/dev/null 2>&1; echo "$ID $ID_LIKE"`
+    fi
+
+    if echo "$rocketmq_os_info" | grep -Eiq "(debian|ubuntu)"; then
+      rocketmq_pkg_hint="src/mod/event_handlers/mod_rocketmq/rocketmq-client-cpp-2.2.0.amd64.deb"
+      rocketmq_install_hint="apt install -y ./src/mod/event_handlers/mod_rocketmq/rocketmq-client-cpp-2.2.0.amd64.deb"
+    elif echo "$rocketmq_os_info" | grep -Eiq "(rhel|centos|fedora|rocky|almalinux|suse)"; then
+      rocketmq_pkg_hint="src/mod/event_handlers/mod_rocketmq/rocketmq-client-cpp-2.2.0-centos7.x86_64.rpm"
+      rocketmq_install_hint="rpm -ivh src/mod/event_handlers/mod_rocketmq/rocketmq-client-cpp-2.2.0-centos7.x86_64.rpm"
+    else
+      rocketmq_pkg_hint="src/mod/event_handlers/mod_rocketmq/rocketmq-client-cpp-2.2.0.amd64.deb or src/mod/event_handlers/mod_rocketmq/rocketmq-client-cpp-2.2.0-centos7.x86_64.rpm"
+      rocketmq_install_hint="install matching package for your distro, then rerun ./configure"
+    fi
+
+    AC_MSG_ERROR([RocketMQ C++ client not found (missing <rocketmq/DefaultMQProducer.h> or -lrocketmq). Suggested package: $rocketmq_pkg_hint ; install example: $rocketmq_install_hint ; or disable mod_rocketmq in modules.conf])
+  fi
+fi
+AC_SUBST([ROCKETMQ_CFLAGS])
+AC_SUBST([ROCKETMQ_LIBS])
 
 PKG_CHECK_MODULES([SPHINXBASE], [sphinxbase >= 5],[
   AM_CONDITIONAL([HAVE_SPHINXBASE],[true])],[
@@ -2080,10 +2157,11 @@ AC_CONFIG_FILES([Makefile
 		src/mod/event_handlers/mod_event_test/Makefile
 		src/mod/event_handlers/mod_fail2ban/Makefile
 		src/mod/event_handlers/mod_format_cdr/Makefile
-		src/mod/event_handlers/mod_json_cdr/Makefile
-		src/mod/event_handlers/mod_odbc_cdr/Makefile
-		src/mod/event_handlers/mod_smpp/Makefile
-		src/mod/event_handlers/mod_snmp/Makefile
+			src/mod/event_handlers/mod_json_cdr/Makefile
+			src/mod/event_handlers/mod_odbc_cdr/Makefile
+			src/mod/event_handlers/mod_rocketmq/Makefile
+			src/mod/event_handlers/mod_smpp/Makefile
+			src/mod/event_handlers/mod_snmp/Makefile
 		src/mod/formats/mod_imagick/Makefile
 		src/mod/formats/mod_local_stream/Makefile
 		src/mod/formats/mod_native_file/Makefile
