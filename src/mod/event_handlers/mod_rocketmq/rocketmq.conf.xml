@@ -13,6 +13,7 @@
       <param name="reconnect_retry_interval" value="1000"/>
       <param name="topic_queue_count" value="4"/>
       <param name="message_mode" value="ordered"/>
+      <param name="topic_validation_mode" value="none"/>
       <param name="event_filter" value="CHANNEL_CREATE,CHANNEL_ANSWER,API,CUSTOM^sofia::register"/>
     </profile>
   </profiles>

@@ -77,6 +77,7 @@ typedef struct {
     unsigned int reconnect_retry_interval; /* in milliseconds */
     unsigned int topic_queue_count; /* number of queues for topic */
     char *message_mode; /* ordered or unordered */
+    char *topic_validation_mode; /* none or send_test_message */
     mod_rocketmq_event_subscription_t events[SWITCH_EVENT_ALL];
     int event_subscriptions;
     switch_event_node_t *event_nodes[SWITCH_EVENT_ALL];
@@ -84,10 +85,13 @@ typedef struct {
 
 typedef struct mod_rocketmq_globals_s {
 	switch_memory_pool_t *pool;
+	switch_memory_pool_t *profile_pool;
 	switch_hash_t *profile_hash;
 	rocketmq::DefaultMQProducer *producer;
 	mod_rocketmq_profile_t *active_profile;
 	switch_mutex_t *mutex;
+	switch_thread_cond_t *producer_cond;
+	uint32_t in_flight_sends;
 } mod_rocketmq_globals_t;
 
 extern mod_rocketmq_globals_t mod_rocketmq_globals;
