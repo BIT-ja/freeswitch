@@ -372,6 +372,7 @@ static void *audio_bridge_thread(switch_thread_t *thread, void *obj)
 	const char *silence_var;
 	int silence_val = 0, bypass_media_after_bridge = 0;
 	const char *bridge_answer_timeout = NULL;
+	const char *abs_answer_timeout = NULL;
 	int bridge_filter_dtmf, answer_timeout, sent_update = 0;
 	time_t answer_limit = 0;
 	const char *exec_app = NULL;
@@ -422,6 +423,45 @@ static void *audio_bridge_thread(switch_thread_t *thread, void *obj)
 	if (!switch_channel_test_flag(chan_a, CF_ANSWERED) && (bridge_answer_timeout = switch_channel_get_variable(chan_a, "bridge_answer_timeout"))) {
 		if ((answer_timeout = atoi(bridge_answer_timeout)) >= 0) {
 			answer_limit = switch_epoch_time_now(NULL) + answer_timeout;
+		}
+	}
+
+	/* absolute_answer_timeout: compute the answer deadline relative to the originate
+	 * start time, so that the timeout covers the entire INVITE -> 200 OK window and
+	 * is not extended by 180/183 early media. When both bridge_answer_timeout and
+	 * absolute_answer_timeout are present, the earlier deadline wins.
+	 * absolute_answer_timeout: 基于 originate 开始时刻计算应答截止时间，使超时
+	 * 覆盖从 INVITE 到 200 OK 的整个窗口，不会被 180/183 早期媒体延长。当
+	 * bridge_answer_timeout 与 absolute_answer_timeout 同时存在时，以更早到期者为准。 */
+	if (!switch_channel_test_flag(chan_a, CF_ANSWERED) &&
+		(abs_answer_timeout = switch_channel_get_variable(chan_a, "absolute_answer_timeout"))) {
+		int abs_timeout = atoi(abs_answer_timeout);
+		if (abs_timeout > 0) {
+			const char *start_epoch_str = switch_channel_get_variable(chan_a, "originate_start_epoch");
+			time_t start_epoch = 0;
+
+			if (!zstr(start_epoch_str)) {
+				start_epoch = (time_t) atol(start_epoch_str);
+			}
+			/* Fall back to "now" if the originate start was not recorded (e.g. the
+			 * caller channel was bridged from a path that did not go through
+			 * switch_ivr_originate). This degrades gracefully to bridge-loop relative.
+			 * 若未记录 originate 开始时间（例如未经 switch_ivr_originate 进入 bridge），
+			 * 退化为以当前时刻为起点，保证功能可用。 */
+			if (start_epoch == 0) {
+				start_epoch = switch_epoch_time_now(NULL);
+			}
+
+			{
+				time_t abs_limit = start_epoch + abs_timeout;
+
+				if (answer_limit == 0 || abs_limit < answer_limit) {
+					answer_limit = abs_limit;
+					switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session_a), SWITCH_LOG_DEBUG,
+									  "Absolute answer timeout set to %d seconds from originate start on %s.\n",
+									  abs_timeout, switch_channel_get_name(chan_a));
+				}
+			}
 		}
 	}
 

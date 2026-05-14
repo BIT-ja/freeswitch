@@ -2412,6 +2412,10 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_originate(switch_core_session_t *sess
 					ok = 1;
 				} else if (!strcasecmp((char *) hi->name, "progress_timeout")) {
 					ok = 1;
+				} else if (!strcasecmp((char *) hi->name, "absolute_answer_timeout")) {
+					/* absolute_answer_timeout: pass through so bridge loop can read it
+					 * absolute_answer_timeout: 透传到 bridge 阶段用于绝对应答超时控制 */
+					ok = 1;
 				} else if (!strcasecmp((char *) hi->name, "language")) {
 					ok = 1;
 				}
@@ -2687,6 +2691,15 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_originate(switch_core_session_t *sess
 
 	switch_epoch_time_now(&global_start);
 	last_retry_start = switch_micro_time_now();
+
+	/* Record the originate start epoch on the caller channel so that the bridge
+	 * loop can compute an absolute (from-INVITE) answer timeout that is not
+	 * influenced by 180/183 early media signals.
+	 * 记录 originate 开始时刻到 caller channel 变量，供 bridge 阶段计算
+	 * 不受 180/183 早期媒体影响的绝对应答超时使用。 */
+	if (caller_channel) {
+		switch_channel_set_variable_printf(caller_channel, "originate_start_epoch", "%ld", (long) global_start);
+	}
 
 	for (try = 0; try < retries; try++) {
 
