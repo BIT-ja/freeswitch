@@ -1,28 +1,32 @@
 <configuration name="logfile.conf" description="File Logging">
   <settings>
-   <!-- true to auto rotate on HUP, false to open/close -->
+   <!-- 收到 SIGHUP 信号时是否轮转日志。true=轮转，false=关闭并重新打开 -->
    <param name="rotate-on-hup" value="true"/>
   </settings>
   <profiles>
     <profile name="default">
       <settings>
-        <!-- File to log to -->
-	<!--<param name="logfile" value="/var/log/freeswitch.log"/>-->
-        <!-- At this length in bytes rotate the log file (0 for never) -->
+        <!-- 日志文件路径，未设置时默认为 $LOG_DIR/freeswitch.log -->
+		<!--<param name="logfile" value="/var/log/freeswitch.log"/>-->
+        <!-- 日志文件大小达到此字节数时触发轮转，0 表示永不轮转 -->
         <param name="rollover" value="10485760"/>
-		<!-- Maximum number of log files to keep before wrapping -->
-		<!-- If this parameter is enabled, the log filenames will not include a date stamp -->
+		<!-- 保留的最大轮转文件数量。启用后文件名不含时间戳（如 .1, .2 ...），设为 0 等同于 4096 -->
 		<!-- <param name="maximum-rotate" value="32"/> -->
-        <!-- Prefix all log lines by the session's uuid  -->
+        <!-- 是否在每行日志前缀中输出会话 UUID -->
         <param name="uuid" value="true" />
+        <!-- 是否在每行日志前缀中输出通道日志标签（配合 set_log_tag 应用使用） -->
+        <!-- <param name="log-tags" value="true"/> -->
+        <!-- 通道变量映射：将指定通道变量以 label:值 格式附加到日志前缀 -->
+        <!-- 格式：label=channel_variable 或 channel_variable（简写），多项以逗号分隔 -->
+        <!-- <param name="channel-vars" value="callid=sip_call_id,instanceID=sip_h_X-callinstanceID"/> -->
       </settings>
       <mappings>
-	<!--
-	     name can be a file name, function name or 'all'
-	     value is one or more of debug,info,notice,warning,err,crit,alert,all
-	     Please see comments in console.conf.xml for more information
-	-->
-	<map name="all" value="debug,info,notice,warning,err,crit,alert"/>
+		<!--
+		     name 可以是源文件名、函数名或 "all"
+		     value 为一个或多个日志级别：debug,info,notice,warning,err,crit,alert,all
+		     匹配优先级：all → 文件名 → 函数名 → "文件名:函数名"
+		-->
+		<map name="all" value="debug,info,notice,warning,err,crit,alert"/>
       </mappings>
     </profile>
   </profiles>

@@ -1844,6 +1844,37 @@ SWITCH_STANDARD_APP(multiunset_function)
 	}
 }
 
+SWITCH_STANDARD_APP(set_log_tag_function)
+{
+	char *name, *val = NULL;
+	switch_channel_t *channel;
+
+	if (zstr(data)) {
+		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_ERROR, "No tag name specified.\n");
+		return;
+	}
+
+	channel = switch_core_session_get_channel(session);
+	name = switch_core_session_strdup(session, data);
+
+	if ((val = strchr(name, '='))) {
+		*val++ = '\0';
+	}
+
+	if (zstr(name)) {
+		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_ERROR, "Invalid tag name.\n");
+		return;
+	}
+
+	switch_channel_set_log_tag(channel, name, val);
+
+	if (zstr(val)) {
+		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "CLEAR LOG TAG [%s]\n", name);
+	} else {
+		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "SET LOG TAG [%s]=[%s]\n", name, val);
+	}
+}
+
 
 SWITCH_STANDARD_APP(log_function)
 {
@@ -6706,6 +6737,8 @@ SWITCH_MODULE_LOAD_FUNCTION(mod_dptools_load)
 	SWITCH_ADD_APP(app_interface, "unset", "Unset a channel variable", UNSET_LONG_DESC, unset_function, "<varname>",
 				   SAF_SUPPORT_NOMEDIA | SAF_ROUTING_EXEC | SAF_ZOMBIE_EXEC);
 	SWITCH_ADD_APP(app_interface, "multiunset", "Unset many channel variables", SET_LONG_DESC, multiunset_function, "[^^<delim>]<varname> <var2> <var3>",
+				   SAF_SUPPORT_NOMEDIA | SAF_ROUTING_EXEC | SAF_ZOMBIE_EXEC);
+	SWITCH_ADD_APP(app_interface, "set_log_tag", "Set a log tag on the channel", "Set a log tag on the channel", set_log_tag_function, "<tagname>=<value>",
 				   SAF_SUPPORT_NOMEDIA | SAF_ROUTING_EXEC | SAF_ZOMBIE_EXEC);
 
 	SWITCH_ADD_APP(app_interface, "capture_text", "capture text", "capture text", capture_text_function, "", SAF_SUPPORT_NOMEDIA | SAF_SUPPORT_TEXT_ONLY);
